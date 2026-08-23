@@ -132,7 +132,19 @@ const RPCS=[
  "https://solana.api.onfinality.io/public",
  "https://public.rpc.solanavibestation.com"
 ];
-let timer=null;
+let timer=null, pollTimer=null;
+const POLL_REFRESH_MS=30000;
+function startPollRefresh(){
+ if(pollTimer)return;
+ pollTimer=setInterval(()=>{
+  log("[POLL] auto-refresh (every 30s)…","key");
+  discoverPoll().catch(e=>log("[POLL] refresh error: "+e.message,"warn"));
+ },POLL_REFRESH_MS);
+ log("[POLL] live balance refresh every 30s","ok");
+}
+function stopPollRefresh(){
+ if(pollTimer){clearInterval(pollTimer);pollTimer=null;log("[POLL] live refresh stopped","key")}
+}
 
 function log(s,c=""){const d=document.createElement("div");d.className="logline "+c;d.textContent=s;document.getElementById("log").appendChild(d);document.getElementById("log").scrollTop=999999}
 function setTrying(s){document.getElementById("trying").textContent=s}
@@ -403,17 +415,25 @@ async function scan(){
  }else{
   setTrying("No matching Content accounts returned.");
   log("[DONE] No decodable Content records found","warn");
-  // still try other record types even if content is empty
   await discoverAnnouncements();
   await discoverPoll();
   await discoverOther();
  }
+ startPollRefresh();
 }
 function escapeHtml(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
 document.getElementById("refresh").onclick=()=>scan();
 document.getElementById("auto").onclick=()=>{
- if(timer){clearInterval(timer);timer=null;document.getElementById("auto").textContent="AUTO: OFF";log("[AUTO] Refresh stopped","key")}
- else{timer=setInterval(scan,60000);document.getElementById("auto").textContent="AUTO: ON";log("[AUTO] Refresh every 60 seconds","key");scan()}
+ if(timer){
+  clearInterval(timer);timer=null;
+  document.getElementById("auto").textContent="AUTO: OFF";
+  log("[AUTO] Full scan stopped (poll still refreshes every 30s)","key");
+ }else{
+  timer=setInterval(scan,60000);
+  document.getElementById("auto").textContent="AUTO: ON";
+  log("[AUTO] Full scan every 60s · poll balances every 30s","key");
+  scan();
+ }
 };
 scan().catch(e=>{setTrying("Discovery failed — see the log.");log("[FATAL] "+e.message,"err")});
 </script>
