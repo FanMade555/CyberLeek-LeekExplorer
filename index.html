@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CONTENT EXPLORER // FAN VIEWER</title>
+<style>
+:root{
+  --bg:#03050b;--panel:#07101d;--panel2:#091728;--line:#15385c;
+  --cyan:#00eaff;--blue:#347cff;--green:#55ff9a;--pink:#ff3df2;
+  --text:#dcecff;--muted:#6d829d;--warn:#ffd45c;--red:#ff5577;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:radial-gradient(circle at 50% -10%,#0a2140 0,#03050b 42%);color:var(--text);font:14px/1.55 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(rgba(0,234,255,.018) 1px,transparent 1px);background-size:100% 4px;opacity:.25}
+.wrap{max-width:1100px;margin:auto;padding:18px}
+.hero{min-height:240px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:30px 12px 24px}
+.kicker{color:var(--cyan);letter-spacing:4px;font-size:11px;text-shadow:0 0 15px #00eaff88}
+.hero h1{margin:10px 0 4px;font-size:clamp(35px,8vw,76px);line-height:.95;letter-spacing:2px;color:#fff;text-shadow:0 0 10px #00eaffaa,0 0 35px #347cff66}
+.hero .trying{font-size:clamp(17px,3vw,29px);color:var(--green);min-height:46px;text-shadow:0 0 18px #55ff9a66}
+.hero .small{color:var(--muted);font-size:12px;margin-top:7px}
+.controls,.logs,.record,.info{border:1px solid var(--line);background:linear-gradient(145deg,#071323ee,#040912ee);box-shadow:0 0 28px #001b3d55}
+.controls{padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input,button{font:inherit;border:1px solid #1c6cb1;background:#06101c;color:var(--cyan);padding:9px 12px;border-radius:6px}
+input{flex:1;min-width:260px;color:#fff}
+button{cursor:pointer}button:hover{border-color:var(--cyan);box-shadow:0 0 16px #00eaff33}
+.logs{padding:0;margin-bottom:14px}
+.logs summary{padding:11px 13px;cursor:pointer;color:var(--cyan);letter-spacing:1px}
+#log{padding:9px 13px 13px;max-height:260px;overflow:auto;border-top:1px solid var(--line)}
+.logline{padding:2px 0;font-size:11px;word-break:break-word}
+.ok{color:var(--green)}.key{color:#6eabff}.warn{color:var(--warn)}.err{color:var(--red)}
+.discovery{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-bottom:14px}
+.stat{border:1px solid var(--line);padding:10px;background:#06101b}
+.stat b{display:block;color:#fff;font-size:20px}.stat span{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px}
+.record{padding:16px;margin:10px 0;border-left:2px solid var(--cyan)}
+.title{font-size:19px;color:#fff;font-weight:800;text-shadow:0 0 12px #347cff55}
+.meta{font-size:10px;color:var(--muted);margin:4px 0 12px;word-break:break-all}
+.link{display:inline-block;margin:4px 6px 4px 0;padding:8px 10px;border:1px solid #1d78c9;color:#6bcfff;text-decoration:none;border-radius:5px;word-break:break-all}
+.link:hover{box-shadow:0 0 18px #00eaff33}
+.magnet{border-color:#3fd77c;color:var(--green)}
+.info{padding:12px;color:var(--muted);font-size:11px;margin-top:14px}
+footer{text-align:center;color:#30445c;font-size:10px;margin:22px 0 4px}
+.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line)}
+.extra{margin:12px 0;border:1px solid var(--line);background:linear-gradient(145deg,#071323ee,#040912ee);box-shadow:0 0 22px #001b3d44;padding:14px}
+.extra-title{color:var(--cyan);letter-spacing:2px;font-weight:800;margin-bottom:8px;text-shadow:0 0 12px #00eaff55}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div class="kicker">LIVE ON-CHAIN DISCOVERY</div>
+    <h1>CONTENT EXPLORER</h1>
+    <div id="trying" class="trying">Trying to connect to Solana…</div>
+    <div class="small">Watching the same Content account system used by the source viewer.</div>
+  </section>
+
+  <section class="controls">
+    <div class="row">
+      <input id="rpc" placeholder="Optional custom Solana RPC endpoint">
+      <button id="refresh">SCAN NOW</button>
+      <button id="auto">AUTO: OFF</button>
+    </div>
+  </section>
+
+  <section class="logs">
+    <details open>
+      <summary>DISCOVERY LOG — LIVE</summary>
+      <div id="log"></div>
+    </details>
+  </section>
+
+  <section class="discovery">
+    <div class="stat"><b id="accounts">—</b><span>matching accounts</span></div>
+    <div class="stat"><b id="decoded">—</b><span>decoded Content</span></div>
+    <div class="stat"><b id="urls">—</b><span>URLs found</span></div>
+    <div class="stat"><b id="latest">—</b><span>latest timestamp</span></div>
+  </section>
+
+  <main id="content"></main>
+
+  <section class="extra">
+    <div class="extra-title">ANNOUNCEMENTS</div>
+    <div id="announcements" class="empty">Content scan finished. Searching for announcement records…</div>
+  </section>
+  <section class="extra">
+    <div class="extra-title">POLLS</div>
+    <div id="polls" class="empty">Content scan finished. Searching for poll records…</div>
+  </section>
+  <section class="extra">
+    <div class="extra-title">OTHER DISCOVERED DATA</div>
+    <div id="other" class="empty">Content scan finished. Searching for additional record types…</div>
+  </section>
+
+  <section class="info">
+    <b style="color:#6eabff">About discovery:</b>
+    This viewer currently implements the verified Content record format from the supplied site code.
+    It does not pretend that unidentified account data is a contact, poll, or other feature until that
+    feature's decoder/schema can be verified from the source code. Unknown program accounts can be added
+    to the technical log in a future decoder pass.
+  </section>
+
+  <footer>Created by just a fan — not the author.</footer>
+</div>
+
+<script>
+const PROGRAM="7rAgHPLDc9NryZmNdeEzyDui6D9PHkvTxMjKhNSa7w3a";
+const CONTENT_DISC="G6JNBZ2BSey", CONTENT_SIZE=7156;
+const ANN_DISC="NjkxTouaByo", ANN_SIZE=656;
+const POLL_DISC="5Qpj1hsHT4k", POLL_SIZE=2800;
+const CONFIG_PROGRAM="7rAgHPLDc9NryZmNdeEzyDui6D9PHkvTxMjKhNSa7w3a";
+const CONFIG_SEED="frontend_config";
+const DISCRIMINATOR=CONTENT_DISC, SIZE=CONTENT_SIZE;
+const RPCS=[
+ "https://api.mainnet-beta.solana.com",
+ "https://solana-rpc.publicnode.com",
+ "https://solana.api.onfinality.io/public",
+ "https://public.rpc.solanavibestation.com"
+];
+let timer=null;
+
+function log(s,c=""){const d=document.createElement("div");d.className="logline "+c;d.textContent=s;document.getElementById("log").appendChild(d);document.getElementById("log").scrollTop=999999}
+function setTrying(s){document.getElementById("trying").textContent=s}
+function b64(s){const x=atob(s),u=new Uint8Array(x.length);for(let i=0;i<x.length;i++)u[i]=x.charCodeAt(i);return u}
+class Reader{
+ constructor(u){this.u=u;this.o=0;this.dv=new DataView(u.buffer,u.byteOffset,u.byteLength)}
+ bytes(n){const x=this.u.slice(this.o,this.o+n);this.o+=n;return x}
+ u8r(){return this.dv.getUint8(this.o++)}
+ u32(){const x=this.dv.getUint32(this.o,true);this.o+=4;return x}
+ i64(){const x=this.dv.getBigInt64(this.o,true);this.o+=8;return x}
+ str(){return new TextDecoder().decode(this.bytes(this.u32()))}
+ vec(fn){const n=this.u32(),a=[];for(let i=0;i<n;i++)a.push(fn());return a}
+ bool(){return this.u8r()!==0}
+ vecStr(){return this.vec(()=>this.str())}
+ vecBool(){return this.vec(()=>this.bool())}
+ vecU64(){return this.vec(()=>{const lo=this.dv.getBigUint64(this.o,true);this.o+=8;return lo})}
+ pubkey(){return this.bytes(32)}
+}
+function decodeContent(data){
+ try{
+  const r=new Reader(data.slice(8));
+  const authority=r.pubkey();
+  const timestamp=Number(r.i64());
+  const title=r.str();
+  const p=r.o;
+  try{return{authority,timestamp,title,items:r.vec(()=>({label:r.str(),url:r.str()}))}}
+  catch{r.o=p;const one=r.str();return{authority,timestamp,title,items:[{label:one,url:one}]}}
+ }catch{return null}
+}
+function b58(a){
+ const abc="123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";let z=0;
+ while(z<a.length&&a[z]===0)z++;let d=[0];
+ for(const b of a){let c=b;for(let j=0;j<d.length;j++){let x=d[j]*256+c;d[j]=x%58;c=Math.floor(x/58)}while(c){d.push(c%58);c=Math.floor(c/58)}}
+ return"1".repeat(z)+d.reverse().map(x=>abc[x]).join("")
+}
+function valid(s){try{let u=new URL(s);return["http:","https:","magnet:"].includes(u.protocol)}catch{return false}}
+async function rpc(url){
+ const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getProgramAccounts",params:[PROGRAM,{encoding:"base64",filters:[{memcmp:{offset:0,bytes:DISCRIMINATOR}},{dataSize:SIZE}]}]})});
+ if(!r.ok)throw Error("HTTP "+r.status);const j=await r.json();if(j.error)throw Error(j.error.message);return j.result
+}
+
+async function queryAccounts(disc,size){
+ const custom=document.getElementById("rpc").value.trim();
+ const list=custom?[custom,...RPCS]:RPCS; let last;
+ for(const url of list){
+  const ctl=new AbortController(), timer=setTimeout(()=>ctl.abort(),8000);
+  try{
+   log("[RPC] "+url+" → getProgramAccounts("+PROGRAM+")","key");
+   const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getProgramAccounts",
+      params:[PROGRAM,{encoding:"base64",filters:[{memcmp:{offset:0,bytes:disc}},{dataSize:size}]}]}),signal:ctl.signal});
+   if(!r.ok)throw Error("HTTP "+r.status);
+   const j=await r.json();if(j.error)throw Error(j.error.message);
+   clearTimeout(timer);log("[RPC OK] "+url+" → "+j.result.length+" accounts","ok");return j.result;
+  }catch(e){clearTimeout(timer);last=e;log("[RPC FAIL] "+url+" → "+(e.name==="AbortError"?"8s timeout":e.message),"warn")}
+ }
+ throw last||Error("all RPCs failed");
+}
+function decodeAnnouncement(data){
+ try{const r=new Reader(data.slice(8));return{authority:r.pubkey(),timestamp:Number(r.i64()),title:r.str(),body:r.str()}}catch{return null}
+}
+function decodePoll(data){
+ try{const r=new Reader(data.slice(8)),authority=r.pubkey(),timestamp=Number(r.i64()),pollId=r.bytes(32),title=r.str(),choices=r.vecStr(),endsAt=Number(r.i64()),isFinalized=r.vecBool();let finalBalances=[];if(r.u.length-r.o>=4)try{finalBalances=r.vecU64()}catch{}return{authority,timestamp,pollId,title,choices,endsAt,isFinalized,finalBalances}}catch{return null}
+}
+function decodeConfig(data){
+ try{
+  const r=new Reader(data.slice(8)),authority=r.pubkey(),about=r.str(),mission=r.str();
+  const faq=[];for(let n=r.u32(),i=0;i<n;i++)faq.push({question:r.str(),answer:r.str()});
+  const contact=[];for(let n=r.u32(),i=0;i<n;i++)contact.push({platform:r.str(),url:r.str()});
+  const swapLinks=[];for(let n=r.u32(),i=0;i<n;i++)swapLinks.push({name:r.str(),url:r.str(),enabled:r.bool()});
+  const sections=[];for(let n=r.u32(),i=0;i<n;i++)sections.push({id:r.str(),visible:r.bool(),state:r.str(),order:r.u8r()});
+  const secure_contact={enabled:r.bool(),public_secret:r.str(),iterations:r.u32(),xmr_integer_part:r.str(),xmr_address:r.str()};
+  return{authority,about,mission,faq,contact,swapLinks,sections,secure_contact}
+ }catch{return null}
+}
+async function rpcAccount(address){
+ const custom=document.getElementById("rpc").value.trim(),list=custom?[custom,...RPCS]:RPCS;let last;
+ for(const url of list){const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),8000);
+  try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getAccountInfo",params:[address,{encoding:"base64"}]}),signal:ctl.signal});if(!r.ok)throw Error("HTTP "+r.status);const j=await r.json();if(j.error)throw Error(j.error.message);clearTimeout(tm);return j.result?.value}catch(e){clearTimeout(tm);last=e}
+ }
+ throw last||Error("all RPCs failed")
+}
+async function loadFrontendConfig(){
+ log("[OTHER] Deriving source-defined frontend_config PDA…","key");
+ try{
+  // The source uses findProgramAddressSync(["frontend_config"], PROGRAM).
+  // Load the same Solana web3 primitive only for this PDA operation.
+  const mod=await import("https://esm.sh/@solana/web3.js@1.98.4?bundle");
+  const {PublicKey}=mod;
+  const [pda]=PublicKey.findProgramAddressSync([new TextEncoder().encode("frontend_config")],new PublicKey(PROGRAM));
+  log("[CONFIG] frontend_config PDA = "+pda.toBase58(),"ok");
+  const v=await rpcAccount(pda.toBase58());
+  if(!v){document.getElementById("other").innerHTML='<span class="meta">frontend_config account not found.</span>';log("[CONFIG] account returned null","warn");return}
+  const raw=Array.isArray(v.data)?v.data[0]:v.data,d=decodeConfig(b64(raw));
+  if(!d)throw Error("frontend_config decoder rejected account data");
+  const box=document.getElementById("other");
+  box.innerHTML=`<div style="color:#fff">${escapeHtml(d.about||"")}</div>
+   <div style="margin-top:8px">${escapeHtml(d.mission||"")}</div>
+   <div class="meta" style="margin-top:10px">CONFIG ACCOUNT: ${pda.toBase58()} · AUTHORITY: ${b58(d.authority)}</div>
+   ${d.contact.length?`<div style="margin-top:10px"><b style="color:#6bcfff">CONTACT</b><br>${d.contact.map(x=>`<a class="link" href="${escapeHtml(x.url)}" target="_blank" rel="noopener">${escapeHtml(x.platform)}</a>`).join("")}</div>`:""}
+   ${d.faq.length?`<details style="margin-top:10px"><summary style="color:#6bcfff;cursor:pointer">FAQ (${d.faq.length})</summary>${d.faq.map(x=>`<div style="padding:7px 0;border-top:1px solid #15385c"><b>${escapeHtml(x.question)}</b><br>${escapeHtml(x.answer)}</div>`).join("")}</details>`:""}
+   ${d.swapLinks.length?`<details style="margin-top:10px"><summary style="color:#6bcfff;cursor:pointer">SWAP LINKS (${d.swapLinks.filter(x=>x.enabled).length} enabled)</summary>${d.swapLinks.filter(x=>x.enabled).map(x=>`<a class="link" href="${escapeHtml(x.url)}" target="_blank" rel="noopener">${escapeHtml(x.name)}</a>`).join("")}</details>`:""}
+   <div class="meta" style="margin-top:10px">SECTIONS: ${d.sections.filter(x=>x.visible).sort((a,b)=>a.order-b.order).map(x=>x.id+"["+x.state+"]").join(" · ")}</div>`;
+  log("[CONFIG FOUND] about="+(!!d.about)+" mission="+(!!d.mission)+" FAQ="+d.faq.length+" contact="+d.contact.length+" swap="+d.swapLinks.length,"ok");
+ }catch(e){document.getElementById("other").innerHTML='<span class="meta">Config lookup failed — see log.</span>';log("[CONFIG ERROR] "+e.message,"err")}
+}
+async function discoverAnnouncements(){
+ log("[NEXT] Content complete → searching ANNOUNCEMENTS","key");
+ setTrying("Content found. Now trying to fetch announcements…");
+ try{
+  const accounts=await queryAccounts(ANN_DISC,ANN_SIZE);
+  log("[ANNOUNCEMENTS] "+accounts.length+" source-defined announcement accounts returned","ok");
+  const rows=accounts.map(x=>{const raw=Array.isArray(x.account.data)?x.account.data[0]:x.account.data;const d=decodeAnnouncement(b64(raw));if(d)d.account=x.pubkey;return d}).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);
+  const box=document.getElementById("announcements");
+  if(!rows.length){box.innerHTML='<span class="meta">none yet</span>';log("[ANN] No announcements found","warn")}
+  else{
+   const recent=rows.slice(0,3), older=rows.slice(3);
+   box.innerHTML=recent.map(r=>`<div style="padding:9px 0;border-top:1px solid #15385c"><div class="meta">${new Date(r.timestamp*1000).toLocaleString()} · ${r.account}</div><div style="color:#fff;font-weight:800">${escapeHtml(r.title)}</div><div>${escapeHtml(r.body)}</div></div>`).join("");
+   if(older.length) box.innerHTML+=`<details style="margin-top:8px"><summary style="color:#6eabff;cursor:pointer">${older.length} older</summary>`+older.map(r=>`<div style="padding:9px 0;border-top:1px solid #15385c"><div class="meta">${new Date(r.timestamp*1000).toLocaleString()} · ${r.account}</div><div style="color:#fff">${escapeHtml(r.title)}</div><div>${escapeHtml(r.body)}</div></div>`).join("")+"</details>";
+   log("[ANN FOUND] "+rows.length+" announcements decoded","ok");
+  }
+ }catch(e){document.getElementById("announcements").innerHTML='<span class="meta">announcement loading failed — see log</span>';log("[ANN ERROR] "+e.message,"err")}
+}
+async function discoverPoll(){
+ log("[NEXT] Announcements complete → searching POLLS","key");
+ setTrying("Announcements checked. Now trying to fetch polls…");
+ try{
+  const accounts=await queryAccounts(POLL_DISC,POLL_SIZE);
+  log("[POLLS] "+accounts.length+" source-defined poll accounts returned","ok");
+  const rows=accounts.map(x=>{const raw=Array.isArray(x.account.data)?x.account.data[0]:x.account.data;const d=decodePoll(b64(raw));if(d)d.account=x.pubkey;return d}).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);
+  const box=document.getElementById("polls");
+  if(!rows.length){box.innerHTML='<span class="meta">coming soon</span>';log("[POLL] No polls found","warn")}
+  else{
+   const r=rows[0], now=Math.floor(Date.now()/1000), live=now<r.endsAt;
+   const hasBal=r.finalBalances&&r.finalBalances.length>0;
+   let total=0n; if(hasBal) for(const b of r.finalBalances) total+=BigInt(b);
+   const choicesHtml=r.choices.map((c,i)=>{
+    let extra="";
+    if(hasBal&&i<r.finalBalances.length){
+     const bal=BigInt(r.finalBalances[i]);
+     const pct=total>0n?Number(bal*10000n/total)/100:0;
+     extra=` <span style="color:var(--green)">${bal.toString()} (${pct.toFixed(1)}%)</span>`;
+    }
+    return `<div style="padding:7px 0;border-top:1px solid #15385c"><span style="color:#6bcfff">${i+1}.</span> ${escapeHtml(c)}${extra}</div>`;
+   }).join("");
+   box.innerHTML=`<div class="meta">${live?"▸ LIVE":"▸ ENDED"} · ${new Date(r.timestamp*1000).toLocaleString()} · ${r.account}<br>ends ${new Date(r.endsAt*1000).toLocaleString()}${hasBal?" · total donated: "+total.toString():""}</div><div style="color:#fff;font-size:18px;font-weight:800">${escapeHtml(r.title)}</div><div style="margin-top:10px">${choicesHtml}</div>`;
+   log("[POLL FOUND] "+rows.length+" poll records decoded; showing newest","ok");
+   if(hasBal) log("[POLL] Newest poll contains "+r.finalBalances.length+" final balance entries","key");
+  }
+ }catch(e){document.getElementById("polls").innerHTML='<span class="meta">poll loading failed — see log</span>';log("[POLL ERROR] "+e.message,"err")}
+}
+async function discoverOther(){
+ log("[NEXT] Polls complete → searching SOURCE-DEFINED SITE CONFIG / OTHER DATA","key");
+ setTrying("Polls found. Now checking site configuration and other records…");
+ await loadFrontendConfig();
+ log("[DONE] Content → Announcements → Polls → Other data discovery sequence complete","ok");
+ setTrying("Discovery complete. Watching for new on-chain data.");
+}
+async function scan(){
+ document.getElementById("log").innerHTML="";
+ document.getElementById("content").innerHTML="";
+ document.getElementById("announcements").innerHTML='<span class="meta">searching…</span>';
+ document.getElementById("polls").innerHTML='<span class="meta">searching…</span>';
+ document.getElementById("other").innerHTML='<span class="meta">searching…</span>';
+ setTrying("Trying RPCs to fetch Content…");
+ log("[START] On-chain Content discovery started","key");
+ log("[TARGET] Program address: "+PROGRAM,"key");
+ log("[FILTER] discriminator "+DISCRIMINATOR+" + account size "+SIZE+" bytes","key");
+ log("[METHOD] getProgramAccounts / base64 account data","key");
+ const custom=document.getElementById("rpc").value.trim();
+ const list=custom?[custom,...RPCS]:RPCS;let accounts,last;
+ for(const url of list){
+  setTrying("Trying "+url+"…");log("[RPC] Trying "+url,"key");
+  try{accounts=await rpc(url);log("[RPC OK] "+accounts.length+" matching accounts returned","ok");break}
+  catch(e){last=e;log("[RPC FAIL] "+(e.message||e),"warn")}
+ }
+ if(!accounts)throw last||Error("No RPC available");
+ document.getElementById("accounts").textContent=accounts.length;
+ log("[DECODE] Starting Content decoder over returned accounts","key");
+ const records=accounts.map(x=>{const raw=Array.isArray(x.account.data)?x.account.data[0]:x.account.data;const r=decodeContent(b64(raw));if(r)r.account=x.pubkey;return r}).filter(Boolean);
+ records.sort((a,b)=>b.timestamp-a.timestamp);
+ document.getElementById("decoded").textContent=records.length;
+ let total=0;
+ records.forEach(r=>{
+  const good=r.items.filter(x=>valid(x.url));total+=good.length;
+  log("[CONTENT FOUND] account="+r.account+" | title="+(r.title||"(untitled)")+" | urls="+good.length,"ok");
+  const el=document.createElement("article");el.className="record";
+  const links=good.map((x,i)=>`<a class="link ${x.url.startsWith("magnet:")?"magnet":""}" target="_blank" rel="noopener noreferrer" href="${x.url.replaceAll('"','&quot;')}">${x.url.startsWith("magnet:")?"MAGNET":"OPEN"} · ${(x.label||"Link "+(i+1))}</a>`).join("");
+  el.innerHTML=`<div class="title">${escapeHtml(r.title||"(untitled)")}</div>
+  <div class="meta">ON-CHAIN ACCOUNT: ${r.account}<br>AUTHORITY FIELD: ${b58(r.authority)}<br>TIME: ${new Date(r.timestamp*1000).toLocaleString()}</div>${links||'<span class="meta">No valid URL fields.</span>'}`;
+  document.getElementById("content").appendChild(el);
+ });
+ document.getElementById("urls").textContent=total;
+ document.getElementById("latest").textContent=records.length?new Date(records[0].timestamp*1000).toLocaleDateString():"—";
+ if(records.length){
+  setTrying("Content found. Now checking announcements, polls & other records…");
+  log("[DONE] "+records.length+" Content records / "+total+" URLs found","ok");
+  log("[NEXT] Content scan complete; additional record-type search begins now","key");
+  log("[SOURCE] Data came directly from Solana account data; Explorer was not scraped","key");
+  await discoverAnnouncements();
+  await discoverPoll();
+  await discoverOther();
+ }else{
+  setTrying("No matching Content accounts returned.");
+  log("[DONE] No decodable Content records found","warn");
+  // still try other record types even if content is empty
+  await discoverAnnouncements();
+  await discoverPoll();
+  await discoverOther();
+ }
+}
+function escapeHtml(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+document.getElementById("refresh").onclick=()=>scan();
+document.getElementById("auto").onclick=()=>{
+ if(timer){clearInterval(timer);timer=null;document.getElementById("auto").textContent="AUTO: OFF";log("[AUTO] Refresh stopped","key")}
+ else{timer=setInterval(scan,60000);document.getElementById("auto").textContent="AUTO: ON";log("[AUTO] Refresh every 60 seconds","key");scan()}
+};
+scan().catch(e=>{setTrying("Discovery failed — see the log.");log("[FATAL] "+e.message,"err")});
+</script>
+</body>
+</html>
