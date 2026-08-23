@@ -44,6 +44,18 @@ footer{text-align:center;color:#30445c;font-size:10px;margin:22px 0 4px}
 .empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line)}
 .extra{margin:12px 0;border:1px solid var(--line);background:linear-gradient(145deg,#071323ee,#040912ee);box-shadow:0 0 22px #001b3d44;padding:14px}
 .extra-title{color:var(--cyan);letter-spacing:2px;font-weight:800;margin-bottom:8px;text-shadow:0 0 12px #00eaff55}
+.poll-choice{padding:10px 0;border-top:1px solid #15385c}
+.poll-choice.winning{border-color:var(--green)}
+.poll-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.poll-name{color:#fff;font-weight:700}
+.poll-name.winner{color:var(--green);text-shadow:0 0 10px #55ff9a66}
+.poll-stats{color:var(--muted);font-size:12px;white-space:nowrap}
+.poll-stats .pct{color:var(--green);font-weight:700}
+.bar-track{width:100%;height:6px;background:#0a1a2e;border:1px solid #15385c;border-radius:3px;overflow:hidden;margin-bottom:6px}
+.bar-fill{height:100%;background:linear-gradient(90deg,#347cff,#00eaff);box-shadow:0 0 12px #00eaff55;transition:width .4s}
+.bar-fill.winner{background:linear-gradient(90deg,#2a9a5a,#55ff9a);box-shadow:0 0 14px #55ff9a66}
+.poll-addr{font-size:10px;color:var(--muted);word-break:break-all}
+.poll-addr .addr{color:#6bcfff}
 </style>
 </head>
 <body>
@@ -110,6 +122,9 @@ const ANN_DISC="NjkxTouaByo", ANN_SIZE=656;
 const POLL_DISC="5Qpj1hsHT4k", POLL_SIZE=2800;
 const CONFIG_PROGRAM="7rAgHPLDc9NryZmNdeEzyDui6D9PHkvTxMjKhNSa7w3a";
 const CONFIG_SEED="frontend_config";
+const TOKEN_MINT="ApZuxdpzMrbEYTGEzeY9afh5pj9d6qPRJCTgQYiipbKg";
+const TOKEN_PROGRAM="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const ATA_PROGRAM="ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 const DISCRIMINATOR=CONTENT_DISC, SIZE=CONTENT_SIZE;
 const RPCS=[
  "https://api.mainnet-beta.solana.com",
@@ -201,13 +216,46 @@ async function rpcAccount(address){
  }
  throw last||Error("all RPCs failed")
 }
+async function rpcTokenBalance(address){
+ const custom=document.getElementById("rpc").value.trim(),list=custom?[custom,...RPCS]:RPCS;let last;
+ for(const url of list){const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),8000);
+  try{
+   const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({jsonrpc:"2.0",id:1,method:"getTokenAccountBalance",params:[address]}),signal:ctl.signal});
+   if(!r.ok)throw Error("HTTP "+r.status);
+   const j=await r.json();
+   clearTimeout(tm);
+   if(j.error)throw Error(j.error.message);
+   return j.result?.value?.amount?BigInt(j.result.value.amount):0n;
+  }catch(e){clearTimeout(tm);last=e}
+ }
+ return 0n;
+}
+let _web3=null;
+async function getWeb3(){
+ if(_web3)return _web3;
+ const mod=await import("https://esm.sh/@solana/web3.js@1.98.4?bundle");
+ _web3=mod;return mod;
+}
+function optionVoteAta(PublicKey,pollIdBytes,choiceIndex){
+ const program=new PublicKey(PROGRAM);
+ const tokenProg=new PublicKey(TOKEN_PROGRAM);
+ const ataProg=new PublicKey(ATA_PROGRAM);
+ const mint=new PublicKey(TOKEN_MINT);
+ const [optionPda]=PublicKey.findProgramAddressSync(
+  [new TextEncoder().encode("option"),pollIdBytes,new Uint8Array([choiceIndex])],
+  program
+ );
+ const [ata]=PublicKey.findProgramAddressSync(
+  [optionPda.toBytes(),tokenProg.toBytes(),mint.toBytes()],
+  ataProg
+ );
+ return ata.toBase58();
+}
 async function loadFrontendConfig(){
  log("[OTHER] Deriving source-defined frontend_config PDA…","key");
  try{
-  // The source uses findProgramAddressSync(["frontend_config"], PROGRAM).
-  // Load the same Solana web3 primitive only for this PDA operation.
-  const mod=await import("https://esm.sh/@solana/web3.js@1.98.4?bundle");
-  const {PublicKey}=mod;
+  const {PublicKey}=await getWeb3();
   const [pda]=PublicKey.findProgramAddressSync([new TextEncoder().encode("frontend_config")],new PublicKey(PROGRAM));
   log("[CONFIG] frontend_config PDA = "+pda.toBase58(),"ok");
   const v=await rpcAccount(pda.toBase58());
@@ -250,24 +298,55 @@ async function discoverPoll(){
   log("[POLLS] "+accounts.length+" source-defined poll accounts returned","ok");
   const rows=accounts.map(x=>{const raw=Array.isArray(x.account.data)?x.account.data[0]:x.account.data;const d=decodePoll(b64(raw));if(d)d.account=x.pubkey;return d}).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp);
   const box=document.getElementById("polls");
-  if(!rows.length){box.innerHTML='<span class="meta">coming soon</span>';log("[POLL] No polls found","warn")}
-  else{
-   const r=rows[0], now=Math.floor(Date.now()/1000), live=now<r.endsAt;
-   const hasBal=r.finalBalances&&r.finalBalances.length>0;
-   let total=0n; if(hasBal) for(const b of r.finalBalances) total+=BigInt(b);
-   const choicesHtml=r.choices.map((c,i)=>{
-    let extra="";
-    if(hasBal&&i<r.finalBalances.length){
-     const bal=BigInt(r.finalBalances[i]);
-     const pct=total>0n?Number(bal*10000n/total)/100:0;
-     extra=` <span style="color:var(--green)">${bal.toString()} (${pct.toFixed(1)}%)</span>`;
+  if(!rows.length){box.innerHTML='<span class="meta">coming soon</span>';log("[POLL] No polls found","warn");return}
+  const r=rows[0], now=Math.floor(Date.now()/1000), live=now<r.endsAt;
+  const finalized=r.isFinalized&&r.isFinalized.every(Boolean);
+  const useStored=finalized&&r.finalBalances&&r.finalBalances.length>0;
+  log("[POLL] title=\""+r.title+"\" live="+live+" finalized="+finalized+" choices="+r.choices.length,"key");
+  let balances=[],addrs=[],total=0n,leadIdx=0,leadBal=0n;
+  if(useStored){
+   log("[POLL] Using on-chain finalBalances","ok");
+   for(let i=0;i<r.choices.length;i++){
+    const bal=i<r.finalBalances.length?BigInt(r.finalBalances[i]):0n;
+    balances.push(bal);addrs.push("");total+=bal;
+    if(bal>leadBal){leadBal=bal;leadIdx=i}
+   }
+  }else{
+   log("[POLL] Fetching live token balances for each choice…","key");
+   const {PublicKey}=await getWeb3();
+   for(let i=0;i<r.choices.length;i++){
+    try{
+     const ata=optionVoteAta(PublicKey,r.pollId,i);
+     addrs.push(ata);
+     const bal=await rpcTokenBalance(ata);
+     balances.push(bal);total+=bal;
+     if(bal>leadBal){leadBal=bal;leadIdx=i}
+     log("[POLL] choice "+(i+1)+" "+r.choices[i]+" → "+bal.toString(),"ok");
+    }catch(e){
+     balances.push(0n);addrs.push("");
+     log("[POLL] choice "+(i+1)+" balance fetch failed: "+e.message,"warn");
     }
-    return `<div style="padding:7px 0;border-top:1px solid #15385c"><span style="color:#6bcfff">${i+1}.</span> ${escapeHtml(c)}${extra}</div>`;
-   }).join("");
-   box.innerHTML=`<div class="meta">${live?"▸ LIVE":"▸ ENDED"} · ${new Date(r.timestamp*1000).toLocaleString()} · ${r.account}<br>ends ${new Date(r.endsAt*1000).toLocaleString()}${hasBal?" · total donated: "+total.toString():""}</div><div style="color:#fff;font-size:18px;font-weight:800">${escapeHtml(r.title)}</div><div style="margin-top:10px">${choicesHtml}</div>`;
-   log("[POLL FOUND] "+rows.length+" poll records decoded; showing newest","ok");
-   if(hasBal) log("[POLL] Newest poll contains "+r.finalBalances.length+" final balance entries","key");
+   }
   }
+  const choicesHtml=r.choices.map((c,i)=>{
+   const bal=balances[i]||0n;
+   const pct=total>0n?Number(bal*10000n/total)/100:0;
+   const win=i===leadIdx&&leadBal>0n;
+   const barW=Math.max(pct,total>0n?0.5:0);
+   const addrLine=addrs[i]?`<div class="poll-addr">send $CYBERLEEK → <span class="addr">${addrs[i]}</span></div>`:(live?"":`<div class="poll-addr">▸ voting has ended</div>`);
+   return `<div class="poll-choice ${win?"winning":""}">
+    <div class="poll-top"><span class="poll-name ${win?"winner":""}">${win?"▸ ":""}${escapeHtml(c)}${win&&!live?" ★":""}</span>
+    <span class="poll-stats">${bal.toString()} <span class="pct">${pct.toFixed(1)}%</span></span></div>
+    <div class="bar-track"><div class="bar-fill ${win?"winner":""}" style="width:${barW}%"></div></div>
+    ${addrLine}</div>`;
+  }).join("");
+  const leadName=total>0n?r.choices[leadIdx]:"—";
+  box.innerHTML=`<div class="meta">${live?"▸ LIVE":"▸ ENDED"} · ${new Date(r.timestamp*1000).toLocaleString()} · ${r.account}<br>
+   ends ${new Date(r.endsAt*1000).toLocaleString()} · total ${total.toString()} $CYBERLEEK
+   ${total>0n?` · <span style="color:var(--green)">${live?"leading":"won"}: ${escapeHtml(leadName)}</span>`:""}</div>
+   <div style="color:#fff;font-size:18px;font-weight:800;margin:8px 0">${escapeHtml(r.title)}</div>
+   <div>${choicesHtml}</div>`;
+  log("[POLL FOUND] "+rows.length+" poll(s); showing newest with live balances","ok");
  }catch(e){document.getElementById("polls").innerHTML='<span class="meta">poll loading failed — see log</span>';log("[POLL ERROR] "+e.message,"err")}
 }
 async function discoverOther(){
