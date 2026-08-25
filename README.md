@@ -1,5 +1,5 @@
-# CYBERLEEK CONTENT EXPLORER // FAN VIEWER FOR CYBERLEEK
-Live on-chain discovery tool for Cyberleek's Contents in Solana. It watches the same Content account system used by the source viewer and surfaces the latest immersive content, announcements, polls, and site config straight from the chain — no scraping.
+# CYBERLEEK LEAK EXPLORER // FAN VIEWER FOR CYBERLEEK
+Live on-chain discovery tool for Cyberleek's Contents/Leaks in Solana. It watches the same Content account system used by the source viewer and surfaces the latest immersive content, announcements, polls, and site config straight from the chain — no scraping.
 **Program:** `7rAgHPLDc9NryZmNdeEzyDui6D9PHkvTxMjKhNSa7w3a`
 
 ![HomePage](HomePage.png)
