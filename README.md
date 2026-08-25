@@ -1,5 +1,5 @@
-# CONTENT EXPLORER // FAN VIEWER
-Live on-chain discovery tool for Solana. It watches the same Content account system used by the source viewer and surfaces the latest immersive content, announcements, polls, and site config straight from the chain — no scraping.
+# CYBERLEEK CONTENT EXPLORER // FAN VIEWER FOR CYBERLEEK
+Live on-chain discovery tool for Cyberleek's Contents in Solana. It watches the same Content account system used by the source viewer and surfaces the latest immersive content, announcements, polls, and site config straight from the chain — no scraping.
 **Program:** `7rAgHPLDc9NryZmNdeEzyDui6D9PHkvTxMjKhNSa7w3a`
 
 ![HomePage](HomePage.png)
@@ -8,7 +8,7 @@ Live on-chain discovery tool for Solana. It watches the same Content account sys
 
 ---
 ## What it does
-Opens a cyberpunk-style fan viewer that:
+Opens an immersive Content Explorer that:
 1. Scans Solana for **Content** accounts (title + links / magnets)
 2. Pulls **Announcements**
 3. Loads **Polls** with live `$CYBERLEEK` vote balances
@@ -79,5 +79,5 @@ Four live counters update after every scan:
 - Unknown or undecodable accounts are ignored; only verified discriminators and sizes are used
 ---
 ## Why this exists
-The official viewer already shows content. This fan page makes the same on-chain records transparent: you see the exact RPC calls, the decode path, live poll voting with `$CYBERLEEK`, announcements, and the site’s own config account. Everything is open and readable so anyone can watch new drops the moment they land on Solana.
+The official viewer who is Cyberleek already shows content. This fan page makes the same on-chain records transparent: you see the exact RPC calls, the decode path, live poll voting with `$CYBERLEEK`, announcements, and the site’s own config account. Everything is open and readable so anyone can watch new drops the moment they land on Solana.
 Created by just a fan — not the author.
