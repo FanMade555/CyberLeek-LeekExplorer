@@ -1,3 +1,5 @@
+This Research is About Understanding How Rockstar Games isn't still able to stop the leaks, based on website [https://fanmade555.github.io/CyberLeek-LeekExplorer/](https://fanmade555.github.io/CyberLeek-LeekExplorer/) (especially its HTML Code: [https://github.com/FanMade555/CyberLeek-LeekExplorer/blob/main/index.html](https://github.com/FanMade555/CyberLeek-LeekExplorer/blob/main/index.html) )
+
 The important thing is: **Link of Contents Leaking, like `https://bedrive.ru/006b' , Titled: 'GTA 6: Game Store` is not being discovered from a website or Solana Explorer. It is being read directly from the data stored inside a Solana account.**
 
 HTML of Website makes this quite clear.
